@@ -1,26 +1,42 @@
 # recomp-gui-template
 
-An immediate-mode GUI in plain C (after Dear ImGui) plus a ready-made **F1 debug menu**
-overlay for Windows / Direct3D 11 static-recompilation projects. Extracted from the
-[xboxrecomp](https://github.com/sp00nznet/xboxrecomp) SDK, where True Crime: New York City RE uses it.
+A small **immediate-mode GUI in plain C** (in the style of Dear ImGui) and a ready-made **F1 debug menu**
+for Windows / Direct3D 11 game recompilation projects. Press F1 in your recompiled game and get a menu with
+tabs, sliders, checkboxes and a live performance panel, with no extra dependencies.
 
-- Core is portable C11, no platform calls: input in (`GuiIO`), one vertex/index list out.
-- Widgets: windows, text, button, checkbox, radio, sliders, combo, selectable, collapsing header,
-  progress bar, plots, tabs. Mouse, keyboard and pad navigation built in.
-- Overlay: FPS/frame-time/CPU/GPU/RAM/VRAM panel, F1 (or L3+R3) menu with tabs, always-on windows, notices.
+Extracted from the [xboxrecomp](https://github.com/sp00nznet/xboxrecomp) SDK, so it fits any game built on it.
+Use **Use this template** on GitHub to start your own copy, or run the setup script below.
 
-## Layout
+![The F1 menu: performance panel, a menu window with tabs, an always-on window and a notice](docs/f1-menu.png)
 
-| Path | What |
-|------|------|
-| `src/gui.[ch]` | immediate-mode core |
-| `src/stb_truetype.h` | font rasteriser (public domain / MIT) |
-| `src/gui_d3d11.[ch]` | D3D11 renderer for the draw data |
-| `src/gui_overlay.[ch]` | perf panel, F1 menu, notices (Windows) |
-| `src/gui_host.[ch]` | the one hook into your runtime (input capture) |
-| `examples/debug_menu.c` | F1 menu scaffold: pages, window, game-side flags |
-| `tools/setup.ps1` | one-command setup for an xboxrecomp game project |
-| `tests/gui_smoke.c` | core checks; with a `.bmp` arg also renders off-screen |
+## What you get
+
+- **F1 menu** (also L3+R3 on a pad): tabs, mouse, keyboard and gamepad navigation, Esc/B to close.
+- **Performance panel:** FPS, frame time graph, CPU, GPU, RAM, VRAM.
+- **Your own pages and windows:** a few lines each (see `examples/debug_menu.c`).
+- **Notices:** one-line messages at the bottom of the screen.
+- **Widgets:** windows, text, button, checkbox, radio, sliders, combo, selectable, collapsing header,
+  progress bar, plots, tabs.
+- **No dependencies:** portable C11 core, a Direct3D 11 renderer, and a single bundled font rasteriser.
+
+## Use cases
+
+- Level select, cheats and god mode while bringing up a recompiled game.
+- Toggling renderer features and graphics options without recompiling.
+- Watching frame time, GPU and memory load as you optimise.
+- Settings screens and mod tools drawn over the game (always-on windows).
+- Scripted menu input for automated test runs (`gui_overlay_press`).
+
+## Works with
+
+| Project | How it is used |
+|---|---|
+| [xboxrecomp](https://github.com/sp00nznet/xboxrecomp) by sp00nz | The SDK this comes from. v0.16.0 and older need the setup script's two hooks; newer SDKs already ship the overlay. |
+| True Crime: New York City RE:COMPILED | Reference integration: pages for audio, graphics, display and developer tools. |
+| Hulk: Ultimate Destruction recomp | Tested with this template's sources: F1 menu with a level selector. |
+
+Any other Windows game that presents with Direct3D 11 can use it too, and the core also runs without
+D3D11 (see [Not using Direct3D 11](#not-using-direct3d-11)).
 
 ## Quick start (xboxrecomp games)
 
@@ -31,49 +47,83 @@ recomp-gui-template\tools\setup.ps1 -Project "D:\My apps\My Game Recomp" -PatchC
 
 The script finds the SDK from `XBOXRECOMP_DIR` in your CMakeLists.txt (or pass `-Sdk <dir>`), then:
 
-- copies the GUI to `src\gui` and a starter `src\debug_menu.c/.h`;
-- if the SDK has no runtime overlay (v0.16.0 and older), copies the SDK's `gpu_present.c` and `keyboard.c` to
-  `src\sdk_local` with the two hooks inserted (draw at present; menu takes the keyboard). Newer SDKs that
-  carry `src\gui` already need neither;
-- writes `src\gui\recomp_gui.cmake` and, with `-PatchCmake`, includes it from CMakeLists.txt.
+1. copies the GUI to `src\gui` and a starter menu to `src\debug_menu.c/.h`;
+2. if the SDK has no overlay of its own (v0.16.0 and older), copies the SDK's `gpu_present.c` and
+   `keyboard.c` to `src\sdk_local` and inserts the two hooks (draw at present, menu takes the keyboard);
+3. writes `src\gui\recomp_gui.cmake`; `-PatchCmake` includes it from your CMakeLists.txt.
 
-Then add `#include "debug_menu.h"` and one `debug_menu_init();` call in `main.c` before the guest runs, build,
-and press F1. Re-running is safe: existing files are kept (`-Force` overwrites). The SDK is never modified.
-Checked: the hooks it inserts match the ones hand-made for Hulk: Ultimate Destruction (SDK v0.16.0).
+Then add two lines to `main.c`, build and press F1:
 
-The manual steps below are what the script does, for other setups.
-## Integrate into a recomp project by hand
+```c
+#include "debug_menu.h"
+...
+debug_menu_init();   // once, before the guest runs
+```
 
-1. **Copy or submodule** this repo, then `add_subdirectory(recomp-gui-template)` and
-   `target_link_libraries(your_game PRIVATE recomp_gui)`. (Or copy `src/` into your tree.)
-2. **Input hook.** Edit `src/gui_host.c`: make `recomp_gui_input_captured()` tell your pad/keyboard
-   layer to report nothing pressed while the menu is open. Or gate game input on
-   `recomp_gui_is_captured()`. (xboxrecomp used `xbox_InputSetCaptured`.)
-3. **Register pages** at start-up, once from `main()` before the first frame (True Crime: `tc_menu_init()`). Copy `examples/debug_menu.c`, rename, add tabs:
-   ```c
-   gui_overlay_add_page("Cheats", cheats_page, NULL);     // tab in the F1 menu
-   gui_overlay_add_window("Tracker", tracker_win, NULL);  // drawn every frame
-   if (!getenv("RECOMP_GUI")) gui_overlay_set_enabled(1); // on by default, as True Crime does
-   gui_overlay_set_title("My Game debug menu");
-   ```
-   Callbacks run on the presenting thread. Set flags only; let the game thread act.
-4. **Draw it.** Once per frame, after the scene and just before `Present()`:
-   ```c
-   gui_overlay_frame_d3d11(device, context, backbuffer_rtv, hwnd);
-   ```
-   Forward `WM_MOUSEWHEEL` to `gui_overlay_wndproc()` if you want the wheel.
-5. **Pad.** Zero your pad state for port 0 while `gui_overlay_wants_input()` is true, exactly as True Crime does:
+Safe to re-run: existing files are kept (`-Force` overwrites). The SDK is never modified.
+
+## Add your own pages
+
+```c
+static void cheats(void *user) {
+    gui_checkbox("God mode", &god);
+    if (gui_button("Reload level")) want_reload = 1;
+}
+static void tracker(void *user) {
+    gui_begin("Tracker", NULL, GUI_WINDOW_AUTO_RESIZE);
+    gui_text("lap %d", lap);
+    gui_end();
+}
+
+gui_overlay_add_page("Cheats", cheats, NULL);      // a tab in the F1 menu
+gui_overlay_add_window("Tracker", tracker, NULL);  // drawn every frame
+```
+
+Callbacks run on the thread that presents: set flags, let your game thread act, and never block.
+
+## Manual setup
+
+What the script does, for other layouts:
+
+1. **Add the code.** `add_subdirectory(recomp-gui-template)` and link `recomp_gui`, or copy `src/`.
+2. **Register pages** once from `main()` before the first frame, as in `examples/debug_menu.c`.
+3. **Draw it** once per frame, after the scene and just before `Present()`:
+   `gui_overlay_frame_d3d11(device, context, backbuffer_rtv, hwnd);`
+4. **Pad.** Zero your port 0 pad state while `gui_overlay_wants_input()` is true, as True Crime does:
    `if (port == 0 && gui_overlay_wants_input()) memset(&st.Gamepad, 0, sizeof st.Gamepad);`
-6. **Mouse.** If your game grabs the mouse, skip it while `gui_overlay_wants_mouse()` or
-   `gui_overlay_wants_input()` is true.
+5. **Mouse and wheel.** Skip your own mouse handling while `gui_overlay_wants_mouse()` is true, and forward
+   `WM_MOUSEWHEEL` to `gui_overlay_wndproc()`.
+6. **Input hook.** `src/gui_host.c` is the one place the GUI touches your runtime. With the SDK's
+   `xbox_InputSetCaptured` present, define `RECOMP_GUI_XBOXRECOMP` and it is called for you.
 
-Not using D3D11? Use the core only: fill `gui_io()` each frame, call `gui_new_frame()`, your widgets,
-then `gui_render()` and draw the returned `GuiDrawData` with your renderer. See `gui.h`.
+### Not using Direct3D 11
 
-## Environment
+Use the core alone: fill `gui_io()` each frame, call `gui_new_frame()`, your widgets, then `gui_render()`
+and draw the returned `GuiDrawData` (vertices, indices, scissored draw commands) with your renderer.
+See `src/gui.h`.
 
-`RECOMP_GUI=on|off`, `RECOMP_OSD=on|off` (perf panel), `RECOMP_GUI_SCALE=<k>` (default backbuffer height / 720),
-`RECOMP_GUI_FONT=<.ttf>` (default Segoe UI Semibold from the Windows font folder).
+## Settings
+
+| Variable | Effect |
+|---|---|
+| `RECOMP_GUI=on\|off` | Turn the overlay on or off (your code can also call `gui_overlay_set_enabled`). |
+| `RECOMP_OSD=on\|off` | Show or hide the performance panel at start. |
+| `RECOMP_GUI_SCALE=<k>` | UI scale. Default: back-buffer height / 720, at least 1. |
+| `RECOMP_GUI_FONT=<.ttf>` | Font file. Default: Segoe UI from the Windows font folder. |
+
+## Repository layout
+
+| Path | What |
+|---|---|
+| `src/gui.[ch]` | The immediate-mode core |
+| `src/gui_d3d11.[ch]` | Direct3D 11 renderer |
+| `src/gui_overlay.[ch]` | Performance panel, F1 menu, notices |
+| `src/gui_host.[ch]` | The one hook into your runtime (input capture) |
+| `src/stb_truetype.h` | Font rasteriser (public domain / MIT) |
+| `examples/` | Starter F1 menu (`debug_menu.c/.h`) |
+| `tools/setup.ps1` | One-command setup for an xboxrecomp project |
+| `tests/gui_smoke.c` | Core checks; with a `.bmp` argument also renders off screen |
+| `docs/` | Screenshots rendered by the smoke test |
 
 ## Build and test
 
@@ -82,14 +132,10 @@ cmake -S . -B build && cmake --build build --config Release
 build\Release\gui_smoke.exe        # prints PASS
 ```
 
-Worked example in a real project: `src/recomp_manual.c` of True Crime NYC RE (pages, F1 time-of-day,
-developer tools, scripted menu input via `gui_overlay_press`).
+CI builds on Windows and runs the smoke test on every push.
 
-## Changes from the SDK copy
+## Credits and license
 
-Only `gui_overlay.c`: the direct call to `xbox_InputSetCaptured()` became `recomp_gui_input_captured()`
-(`gui_host.[ch]`), so the library builds without the xboxrecomp input layer. CMake target is `recomp_gui`.
-
-## License
-
-MIT, Copyright (c) 2026 sp00nz (`LICENSE`, unchanged). Third-party credits in `NOTICE`.
+MIT, Copyright (c) 2026 sp00nz (`LICENSE`). The code is extracted from the xboxrecomp SDK; the one change is the
+input hook in `gui_overlay.c`. Third-party credits in `NOTICE`: stb_truetype (public domain / MIT) and the
+Moonlight colour theme by Madam-Herta / deathsu.
