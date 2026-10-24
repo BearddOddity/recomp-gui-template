@@ -1,6 +1,6 @@
 # recomp-gui-template
 
-An F1 debug menu for recompiled Windows games, built on a small immediate-mode GUI written in plain C.
+An F1 debug menu for recompiled Xbox Original games, built on a small immediate-mode GUI written in plain C.
 Drop it into a [xboxrecomp](https://github.com/sp00nznet/xboxrecomp) game project with one command, press F1
 in the running game, and get tabs, sliders, checkboxes and a live FPS / CPU / GPU / memory panel drawn over the
 game. Add your own pages in a few lines.
