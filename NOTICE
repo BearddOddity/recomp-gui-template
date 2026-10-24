@@ -1,0 +1,13 @@
+recomp-gui-template
+Copyright (c) 2026 sp00nz, MIT License (see LICENSE). Extracted from
+https://github.com/sp00nznet/xboxrecomp (src/gui, tests/gui_smoke).
+
+Third-party material:
+
+- src/stb_truetype.h: v1.26 by Sean Barrett and contributors. Public domain or
+  MIT, your choice; the licence text is at the end of the file and must stay.
+- Default colour theme in src/gui.c (gui_style_moonlight): "Moonlight" by
+  Madam-Herta / deathsu, https://github.com/Madam-Herta/Moonlight. Credit
+  comment kept in the source.
+- API shape follows Dear ImGui (https://github.com/ocornut/imgui, MIT). No
+  Dear ImGui code is included; this is an independent implementation.
