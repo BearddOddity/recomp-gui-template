@@ -24,7 +24,7 @@ The script reads `XBOXRECOMP_DIR` from your CMakeLists.txt (or pass `-Sdk <dir>`
    (`gui_present_hook.c`), so **no SDK file is copied or patched**;
 3. writes `src\gui\recomp_gui.cmake`, and with `-PatchCmake` includes it from your CMakeLists.txt.
 
-Then add two lines to `main.c`, build and press F1:
+Then add two lines to `main.c` (the call is a no-op when the menu is switched off), build and press F1:
 
 ```c
 #include "debug_menu.h"
@@ -34,9 +34,11 @@ debug_menu_init();   // once, before the guest runs
 
 Safe to re-run: existing files are kept (`-Force` overwrites). The SDK itself is never modified.
 
-## Independent of the SDK version
+## Opt-in, and independent of the SDK version
 
-The GUI never reads SDK headers or patches SDK files, so the same sources work with any xboxrecomp version:
+The menu is an add-on, not part of the SDK. Configure with `-DRECOMP_GUI_MENU=OFF` and none of it is compiled or
+linked: `debug_menu_init()` turns into an empty inline function, so your `main.c` needs no `#ifdef`. At run time
+`RECOMP_GUI=off` hides it too. It is not tied to any SDK version:
 
 - **Drawing:** the menu hooks `IDXGISwapChain::Present` (one patched vtable slot shared by every Direct3D 11
   swap chain), so it does not matter which SDK version or renderer made the window. If your renderer already
@@ -46,12 +48,13 @@ The GUI never reads SDK headers or patches SDK files, so the same sources work w
   input code when the menu has the pad.
 - **SDKs that already carry the overlay** (some forks, True Crime's checkout): the script copies only the starter
   menu, so no symbol is defined twice.
-- **Official sp00nznet/xboxrecomp releases up to v0.16.0** have no overlay; the script adds the GUI and the hook.
-  Tested with a game built on the unmodified v0.16.0 SDK files.
+- **SDKs without an overlay** (the official sp00nznet/xboxrecomp releases I checked, up to v0.16.0): the script adds
+  the GUI and the hook. It decides by looking for `src/gui` in the SDK, not by version number. Checked with a game
+  built on the unmodified v0.16.0 SDK files; other versions are expected to work the same way but are untested.
 
 If a game maps the keyboard to the pad (the SDK's keyboard option), also return "no keys" from that path while
-`gui_overlay_wants_input()` is true. `setup.ps1 -PatchSdkCopies` does this for v0.16.0 by editing local copies of
-two SDK files, but it depends on that version's code layout, so it is off by default.
+`gui_overlay_wants_input()` is true. `setup.ps1 -PatchSdkCopies` does this by editing local copies of two SDK files, but it
+depends on those files' layout, so it is off by default.
 ## Use cases
 
 - Level select, cheats and god mode while bringing up a recompiled game.
