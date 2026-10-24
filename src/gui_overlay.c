@@ -30,6 +30,7 @@
 #include "gui.h"
 #include "gui_d3d11.h"
 #include "gui_overlay.h"
+#include "gui_font_montserrat.h"
 
 /* Host hook: tell the title to stop reading the pad while the menu is open. */
 void recomp_gui_input_captured(int captured);   /* host hook: see gui_host.c */
@@ -179,28 +180,23 @@ static void *read_file(const char *path, size_t *size)
     return p;
 }
 
+/* The font: RECOMP_GUI_FONT=<.ttf> if set and readable, else the Montserrat Medium compiled in. */
 static int font_init(unsigned target_h)
 {
-    static const char *faces[] = { "segoeuisb.ttf", "segoeui.ttf", "tahoma.ttf", "arial.ttf" };
     const char *env = getenv("RECOMP_GUI_FONT");
-    char path[MAX_PATH], dir[MAX_PATH];
-    void *ttf = NULL;
-    size_t size = 0, i;
+    const void *ttf = NULL;
+    void *owned = NULL;
+    const char *used = "built-in Montserrat Medium";
+    size_t size = 0;
     int ok;
 
-    if (env && *env) {
-        snprintf(path, sizeof path, "%s", env);
-        ttf = read_file(path, &size);
-    }
-    if (!GetWindowsDirectoryA(dir, sizeof dir))
-        snprintf(dir, sizeof dir, "C:\\Windows");
-    for (i = 0; !ttf && i < sizeof faces / sizeof faces[0]; i++) {
-        snprintf(path, sizeof path, "%s\\Fonts\\%s", dir, faces[i]);
-        ttf = read_file(path, &size);
+    if (env && *env && (owned = read_file(env, &size)) != NULL) {
+        ttf = owned;
+        used = env;
     }
     if (!ttf) {
-        fprintf(stderr, "[GUI] no font found (set RECOMP_GUI_FONT to a .ttf); overlay off\n");
-        return 0;
+        ttf = gui_font_montserrat_medium;
+        size = gui_font_montserrat_medium_size;
     }
     {
         const char *v = getenv("RECOMP_GUI_SCALE");
@@ -209,12 +205,11 @@ static int font_init(unsigned target_h)
         if (s_scale > 4.0f) s_scale = 4.0f;
     }
     ok = gui_init(ttf, size, 16.0f * s_scale);
-    free(ttf);
-    if (!ok) fprintf(stderr, "[GUI] cannot read font %s; overlay off\n", path);
-    else fprintf(stderr, "[GUI] overlay ready: %s, %.0f px\n", path, gui_font_size());
+    free(owned);
+    if (!ok) fprintf(stderr, "[GUI] cannot read font %s; overlay off\n", used);
+    else fprintf(stderr, "[GUI] overlay ready: %s, %.0f px\n", used, gui_font_size());
     return ok;
 }
-
 static void perf_init(ID3D11Device *dev)
 {
     IDXGIDevice *dx = NULL;

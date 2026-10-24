@@ -24,6 +24,7 @@
 #include "gui_host.h"
 #include "gui_overlay.h"
 #include "gui_overlay_portable.h"
+#include "gui_font_montserrat.h"
 
 #define MAX_PAGES   32
 #define MAX_NOTICES 4
@@ -172,29 +173,23 @@ static void *read_file(const char *path, size_t *size)
     return p;
 }
 
+/* The font: RECOMP_GUI_FONT=<.ttf> if set and readable, else the Montserrat Medium compiled in. */
 static int font_init(float target_h)
 {
-    static const char *faces[] = {
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", "/usr/share/fonts/TTF/DejaVuSans.ttf",
-        "/usr/share/fonts/dejavu/DejaVuSans.ttf", "/usr/share/fonts/dejavu-sans-fonts/DejaVuSans.ttf",
-        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
-        "/usr/share/fonts/liberation/LiberationSans-Regular.ttf",
-        "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf", "/usr/share/fonts/noto/NotoSans-Regular.ttf",
-        "/System/Library/Fonts/Supplemental/Arial.ttf", "/Library/Fonts/Arial.ttf",
-        "/System/Library/Fonts/Supplemental/Verdana.ttf", "/System/Library/Fonts/Supplemental/Tahoma.ttf",
-    };
     const char *env = getenv("RECOMP_GUI_FONT");
-    const char *used = NULL;
-    void *ttf = NULL;
-    size_t size = 0, i;
+    const void *ttf = NULL;
+    void *owned = NULL;
+    const char *used = "built-in Montserrat Medium";
+    size_t size = 0;
     int ok;
 
-    if (env && *env && (ttf = read_file(env, &size)) != NULL) used = env;
-    for (i = 0; !ttf && i < sizeof faces / sizeof faces[0]; i++)
-        if ((ttf = read_file(faces[i], &size)) != NULL) used = faces[i];
+    if (env && *env && (owned = read_file(env, &size)) != NULL) {
+        ttf = owned;
+        used = env;
+    }
     if (!ttf) {
-        fprintf(stderr, "[GUI] no font found (set RECOMP_GUI_FONT to a .ttf); overlay off\n");
-        return 0;
+        ttf = gui_font_montserrat_medium;
+        size = gui_font_montserrat_medium_size;
     }
     {
         const char *v = getenv("RECOMP_GUI_SCALE");
@@ -204,12 +199,11 @@ static int font_init(float target_h)
         if (s_scale > 4.0f) s_scale = 4.0f;
     }
     ok = gui_init(ttf, size, 16.0f * s_scale);
-    free(ttf);
+    free(owned);
     if (!ok) fprintf(stderr, "[GUI] cannot read font %s; overlay off\n", used);
     else fprintf(stderr, "[GUI] overlay ready: %s, %.0f px\n", used, gui_font_size());
     return ok;
 }
-
 /* ── Performance ──────────────────────────────────────────────── */
 
 static double cpu_seconds(void)

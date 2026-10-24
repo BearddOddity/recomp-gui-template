@@ -8,8 +8,8 @@ game. Add your own pages in a few lines.
 ![The F1 menu: performance panel, a menu window with tabs, an always-on window and a notice](docs/f1-menu.png)
 
 **Runs on:** Windows (Direct3D 11), Linux (OpenGL 3.3 / ES 3.0) and macOS (Metal). Needs a C11 compiler and CMake. The
-font is read from the system (Segoe UI on Windows, DejaVu or Liberation on Linux, Arial on macOS), or point
-`RECOMP_GUI_FONT` at any `.ttf`.
+UI font is Montserrat Medium, compiled in, so the menu looks the same on every system and needs no font files.
+Point `RECOMP_GUI_FONT` at any `.ttf` to use another.
 
 ## Quick start
 
@@ -146,7 +146,7 @@ then `gui_render()`, and draw the returned vertices, indices and scissored comma
 | `RECOMP_GUI=on` or `off` | Overlay on or off (code can also call `gui_overlay_set_enabled`). |
 | `RECOMP_OSD=on` or `off` | Performance panel shown or hidden at start. |
 | `RECOMP_GUI_SCALE=<k>` | UI scale. Default: back-buffer height / 720, at least 1. |
-| `RECOMP_GUI_FONT=<file.ttf>` | Font. Default: Segoe UI from the Windows font folder. |
+| `RECOMP_GUI_FONT=<file.ttf>` | Font file. Default: the built-in Montserrat Medium. |
 
 ## What is in the repo
 
@@ -158,6 +158,7 @@ then `gui_render()`, and draw the returned vertices, indices and scissored comma
 | `src/gui_host.[ch]` | The one hook into your runtime (input capture) |
 | `src/gui_present_hook.[ch]` | Optional: draw by hooking `IDXGISwapChain::Present` |
 | `src/stb_truetype.h` | Font rasteriser |
+| `src/gui_font_montserrat.[ch]`, `fonts/` | The built-in Montserrat Medium (as a C array, and the .ttf with its licence) |
 | `examples/` | Starter F1 menu |
 | `tools/setup.ps1` | The setup script |
 | `src/gui_overlay_portable.[ch]` | Overlay for Linux and macOS (host feeds input, draws the result) |
@@ -191,4 +192,4 @@ build\Release\present_hook_test.exe  # exit code 0
 
 MIT, Copyright (c) 2026 sp00nz (`LICENSE`). The code is extracted from the xboxrecomp SDK; the one change is the
 input hook in `gui_overlay.c`. Third-party credits are in `NOTICE`: stb_truetype (public domain or MIT), the
-Moonlight theme, and Dear ImGui as the design the API follows. No Dear ImGui source code is included.
+Moonlight theme, the Montserrat font (SIL Open Font License 1.1, `fonts/OFL.txt`), and Dear ImGui as the design the API follows. No Dear ImGui source code is included.

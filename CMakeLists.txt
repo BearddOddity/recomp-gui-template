@@ -8,10 +8,10 @@ set(CMAKE_C_STANDARD 11)
 #   Linux   : OpenGL 3.3 / ES 3.0 renderer (loader supplied by the host) + portable overlay
 if(WIN32)
     add_library(recomp_gui STATIC
-        src/gui.c src/gui_d3d11.c src/gui_overlay.c src/gui_host.c src/gui_present_hook.c)
+        src/gui.c src/gui_d3d11.c src/gui_overlay.c src/gui_host.c src/gui_present_hook.c src/gui_font_montserrat.c)
     target_link_libraries(recomp_gui PUBLIC d3d11 dxgi dxguid d3dcompiler pdh psapi xinput)
 else()
-    add_library(recomp_gui STATIC src/gui.c src/gui_overlay_portable.c src/gui_host.c)
+    add_library(recomp_gui STATIC src/gui.c src/gui_overlay_portable.c src/gui_host.c src/gui_font_montserrat.c)
     target_link_libraries(recomp_gui PUBLIC m)
     find_package(Threads REQUIRED)
     target_link_libraries(recomp_gui PUBLIC Threads::Threads)

@@ -64,11 +64,12 @@ function Add-Hook($file, $include, $anchor, $text) {
 $gui = Join-Path $proj 'src\gui'
 if (-not $sdkHasGui) {
 Write-Host "GUI sources -> src\gui"
-foreach ($f in 'gui.c','gui.h','gui_d3d11.c','gui_d3d11.h','gui_overlay.c','gui_overlay.h','stb_truetype.h','gui_host.c','gui_host.h','gui_present_hook.c','gui_present_hook.h') {
+foreach ($f in 'gui.c','gui.h','gui_d3d11.c','gui_d3d11.h','gui_overlay.c','gui_overlay.h','stb_truetype.h','gui_host.c','gui_host.h','gui_present_hook.c','gui_present_hook.h','gui_font_montserrat.c','gui_font_montserrat.h') {
     Copy-New (Join-Path $tpl "src\$f") (Join-Path $gui $f) | Out-Null
 }
 Copy-New (Join-Path $tpl 'LICENSE') (Join-Path $gui 'LICENSE-recomp-gui') | Out-Null
 Copy-New (Join-Path $tpl 'NOTICE')  (Join-Path $gui 'NOTICE-recomp-gui')  | Out-Null
+Copy-New (Join-Path $tpl 'fonts\OFL.txt') (Join-Path $gui 'OFL-Montserrat.txt') | Out-Null
 }
 
 # 2. starter menu
@@ -79,7 +80,7 @@ Copy-New (Join-Path $tpl 'examples\debug_menu.h') (Join-Path $proj 'src\debug_me
 # 3. Optional legacy path (-PatchSdkCopies): local copies of two SDK files with the hooks inserted.
 #    Version-fragile, so off by default; the default draws through gui_present_hook.c instead.
 $sources = @('src/debug_menu.c')
-if (-not $sdkHasGui) { $sources = @('src/gui/gui.c','src/gui/gui_d3d11.c','src/gui/gui_overlay.c','src/gui/gui_host.c','src/gui/gui_present_hook.c') + $sources }
+if (-not $sdkHasGui) { $sources = @('src/gui/gui.c','src/gui/gui_d3d11.c','src/gui/gui_overlay.c','src/gui/gui_host.c','src/gui/gui_present_hook.c','src/gui/gui_font_montserrat.c') + $sources }
 $defs = @()
 if ($PatchSdkCopies -and -not $sdkHasGui) {
     Write-Host "SDK hooks -> src\sdk_local"
