@@ -96,9 +96,8 @@ if (dd) { gui_gl_init(SDL_GL_GetProcAddress, 0); gui_gl_render(dd, fb_w, fb_h); 
 - `gui_metal_init` / `gui_metal_render` take the Metal device and the render encoder as `void *`, so the header is plain C.
 - The performance panel shows FPS, frame time, CPU and RAM (no GPU numbers off Windows).
 - There is no `setup.ps1` for these systems: add the folder with CMake (`add_subdirectory`) and link `recomp_gui`.
-- Checked here: Linux builds warning-free with GCC and passes `portable_overlay_test`; `gl_render_test` renders the menu
-  through Mesa's software OpenGL into an off-screen buffer (see `docs/linux-opengl.png`). Metal is built and tested by CI on a
-  macOS runner (see the build badge above); I have not run it on a real Mac.
+- Checked: on every push CI builds all three platforms. Linux and macOS each render the menu off screen (Mesa software OpenGL, and Metal on a macOS runner) and check that about 200,000 pixels were drawn; Linux also builds warning-free and passes portable_overlay_test. See docs/linux-opengl.png. Not yet run inside a real game window on Linux or a Mac: the window and input glue is yours to write.
+
 ## Add your own pages
 
 ```c
