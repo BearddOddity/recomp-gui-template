@@ -9,5 +9,7 @@ Third-party material:
 - Default colour theme in src/gui.c (gui_style_moonlight): "Moonlight" by
   Madam-Herta / deathsu, https://github.com/Madam-Herta/Moonlight. Credit
   comment kept in the source.
-- API shape follows Dear ImGui (https://github.com/ocornut/imgui, MIT). No
-  Dear ImGui code is included; this is an independent implementation.
+- API shape and immediate-mode design follow Dear ImGui by Omar Cornut
+  (https://github.com/ocornut/imgui, MIT, C++). This is an adaptation to plain
+  C with C structs in place of its C++ types, written independently; no Dear
+  ImGui source code is included.

@@ -134,8 +134,23 @@ build\Release\gui_smoke.exe        # prints PASS
 
 CI builds on Windows and runs the smoke test on every push.
 
-## Credits and license
+## Where it comes from
+
+- **[Dear ImGui](https://github.com/ocornut/imgui)** by Omar Cornut (MIT, C++) is the original immediate-mode GUI
+  this is modelled on. It popularised the idea: no widget tree, you call one function per widget each frame
+  (`if (ImGui::Button("Reload"))`) and it tells you what the user did. This library keeps that model and the
+  same naming, but is written in plain C (`gui_button`, `gui_checkbox`, `gui_slider_float`...), with the C++
+  types turned into C structs (`ImVec2` / `ImVec4` / `ImGuiStyle` became `GuiVec2` / `GuiColor` / `GuiStyle`),
+  no classes, templates or overloads, and no dependency on a C++ compiler. It is an adaptation, not a
+  line-by-line port: it has no tables, docking, text input, child windows or multiple fonts, and it adds
+  keyboard and gamepad navigation built for use over a game.
+- **[Moonlight](https://github.com/Madam-Herta/Moonlight)** by Madam-Herta / deathsu is the Dear ImGui colour
+  theme used as the default look. Its colours and sizes are carried over into a C `GuiStyle`
+  (`gui_style_moonlight()` in `src/gui.c`, credit kept in the source) and scaled with the font size.
+- **[xboxrecomp](https://github.com/sp00nznet/xboxrecomp)** by sp00nz is where this code was developed and ships.
+
+## License
 
 MIT, Copyright (c) 2026 sp00nz (`LICENSE`). The code is extracted from the xboxrecomp SDK; the one change is the
-input hook in `gui_overlay.c`. Third-party credits in `NOTICE`: stb_truetype (public domain / MIT) and the
-Moonlight colour theme by Madam-Herta / deathsu.
+input hook in `gui_overlay.c`. Third-party credits in `NOTICE`: stb_truetype (public domain / MIT), the Moonlight
+theme, and Dear ImGui as the design the API follows. No Dear ImGui source code is included.
