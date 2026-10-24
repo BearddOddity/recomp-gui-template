@@ -9,7 +9,9 @@
 #include <stdlib.h>
 #include "gui.h"
 #include "gui_overlay.h"
-#include "gui_host.h"
+#ifdef RECOMP_GUI_AUTO_PRESENT
+#include "gui_present_hook.h"
+#endif
 
 /* State your game code reads. Pages only set flags; the game thread acts. */
 static int   g_god_mode;
@@ -51,6 +53,11 @@ void debug_menu_init(void)
     if (!getenv("RECOMP_GUI"))
         gui_overlay_set_enabled(1);
     gui_overlay_set_title("My Game debug menu");
+#ifdef RECOMP_GUI_AUTO_PRESENT
+    /* The game never calls gui_overlay_frame_d3d11(): draw by hooking Present.
+     * Leave this out (and the define off) if your renderer calls it itself. */
+    gui_present_hook_install();
+#endif
     gui_overlay_add_page("Cheats", page_cheats, 0);
     gui_overlay_add_page("Graphics", page_graphics, 0);
     gui_overlay_add_window("Tracker", window_tracker, 0);

@@ -20,8 +20,8 @@ powershell -ExecutionPolicy Bypass -File recomp-gui-template\tools\setup.ps1 -Pr
 The script reads `XBOXRECOMP_DIR` from your CMakeLists.txt (or pass `-Sdk <dir>`) and:
 
 1. copies the GUI to `src\gui` and a starter menu to `src\debug_menu.c/.h`;
-2. if the SDK has no overlay of its own, copies the SDK's `gpu_present.c` and `keyboard.c` to `src\sdk_local`
-   and inserts two hooks: draw the menu at present, and give the menu the keyboard while it is open;
+2. if the SDK has no overlay of its own, the menu is drawn by hooking `IDXGISwapChain::Present`
+   (`gui_present_hook.c`), so **no SDK file is copied or patched**;
 3. writes `src\gui\recomp_gui.cmake`, and with `-PatchCmake` includes it from your CMakeLists.txt.
 
 Then add two lines to `main.c`, build and press F1:
@@ -34,13 +34,24 @@ debug_menu_init();   // once, before the guest runs
 
 Safe to re-run: existing files are kept (`-Force` overwrites). The SDK itself is never modified.
 
-## Which SDKs need what
+## Independent of the SDK version
 
-| SDK | Overlay in the SDK? | What the script does |
-|---|---|---|
-| Official [sp00nznet/xboxrecomp](https://github.com/sp00nznet/xboxrecomp) releases, up to v0.16.0 | No | Copies the GUI and adds the two hooks to local copies of `gpu_present.c` and `keyboard.c`. |
-| Forks that already carry `src/gui` in the SDK (True Crime's SDK checkout) | Yes | Copies only the starter menu; the SDK draws it. |
+The GUI never reads SDK headers or patches SDK files, so the same sources work with any xboxrecomp version:
 
+- **Drawing:** the menu hooks `IDXGISwapChain::Present` (one patched vtable slot shared by every Direct3D 11
+  swap chain), so it does not matter which SDK version or renderer made the window. If your renderer already
+  calls `gui_overlay_frame_d3d11()` itself (True Crime does), skip the hook and nothing is drawn twice.
+- **Pad capture:** if your runtime has `xbox_InputSetCaptured()` it is called when the menu opens; if not, the
+  linker binds the name to a no-op (MSVC `/alternatename`). Either way, `gui_overlay_wants_input()` tells your own
+  input code when the menu has the pad.
+- **SDKs that already carry the overlay** (some forks, True Crime's checkout): the script copies only the starter
+  menu, so no symbol is defined twice.
+- **Official sp00nznet/xboxrecomp releases up to v0.16.0** have no overlay; the script adds the GUI and the hook.
+  Tested with a game built on the unmodified v0.16.0 SDK files.
+
+If a game maps the keyboard to the pad (the SDK's keyboard option), also return "no keys" from that path while
+`gui_overlay_wants_input()` is true. `setup.ps1 -PatchSdkCopies` does this for v0.16.0 by editing local copies of
+two SDK files, but it depends on that version's code layout, so it is off by default.
 ## Use cases
 
 - Level select, cheats and god mode while bringing up a recompiled game.
@@ -86,14 +97,13 @@ For projects the script does not fit:
 
 1. **Add the code.** `add_subdirectory(recomp-gui-template)` and link `recomp_gui`, or copy `src/`.
 2. **Register pages** once from `main()` before the first frame, as in `examples/debug_menu.c`.
-3. **Draw it** once per frame, after the scene and just before `Present()`:
-   `gui_overlay_frame_d3d11(device, context, backbuffer_rtv, hwnd);`
+3. **Draw it.** Either call `gui_present_hook_install();` once (hooks `Present`, no renderer change), or call
+   `gui_overlay_frame_d3d11(device, context, backbuffer_rtv, hwnd);` yourself once per frame just before `Present()`. Not both.
 4. **Pad.** Zero your port 0 pad state while the menu is open, as True Crime does:
    `if (port == 0 && gui_overlay_wants_input()) memset(&st.Gamepad, 0, sizeof st.Gamepad);`
 5. **Mouse and wheel.** Skip your own mouse handling while `gui_overlay_wants_mouse()` is true, and forward
    `WM_MOUSEWHEEL` to `gui_overlay_wndproc()`.
-6. **Input hook.** `src/gui_host.c` is the one place the GUI touches your runtime. If your SDK has
-   `xbox_InputSetCaptured`, define `RECOMP_GUI_XBOXRECOMP` and it is called for you.
+6. **Input hook.** `src/gui_host.c` is the one place the GUI touches your runtime (see above).
 
 **Without Direct3D 11:** use the core alone. Fill `gui_io()` each frame, call `gui_new_frame()`, your widgets,
 then `gui_render()`, and draw the returned vertices, indices and scissored commands with your own renderer.
@@ -115,10 +125,11 @@ then `gui_render()`, and draw the returned vertices, indices and scissored comma
 | `src/gui_d3d11.[ch]` | Direct3D 11 renderer |
 | `src/gui_overlay.[ch]` | Performance panel, F1 menu, notices |
 | `src/gui_host.[ch]` | The one hook into your runtime (input capture) |
+| `src/gui_present_hook.[ch]` | Optional: draw by hooking `IDXGISwapChain::Present` |
 | `src/stb_truetype.h` | Font rasteriser |
 | `examples/` | Starter F1 menu |
 | `tools/setup.ps1` | The setup script |
-| `tests/gui_smoke.c` | Core checks; given a `.bmp` path it also renders off screen |
+| `tests/` | `gui_smoke` (core checks; with a `.bmp` path also renders off screen) and `present_hook_test` (real swap chain, hook reached on every Present) |
 | `docs/` | Screenshots made by the smoke test |
 
 Build and test:
@@ -126,6 +137,7 @@ Build and test:
 ```
 cmake -S . -B build && cmake --build build --config Release
 build\Release\gui_smoke.exe        # prints PASS
+build\Release\present_hook_test.exe  # exit code 0
 ```
 
 ## Where it comes from

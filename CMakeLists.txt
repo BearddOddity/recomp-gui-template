@@ -5,7 +5,7 @@ set(CMAKE_C_STANDARD 11)
 # Core (portable) + D3D11 renderer + overlay (Windows) + host glue.
 if(WIN32)
     add_library(recomp_gui STATIC
-        src/gui.c src/gui_d3d11.c src/gui_overlay.c src/gui_host.c)
+        src/gui.c src/gui_d3d11.c src/gui_overlay.c src/gui_host.c src/gui_present_hook.c)
     target_link_libraries(recomp_gui PUBLIC d3d11 dxgi dxguid d3dcompiler pdh psapi xinput)
 else()
     add_library(recomp_gui STATIC src/gui.c)
@@ -25,3 +25,8 @@ target_link_libraries(recomp_gui_example PRIVATE recomp_gui)
 
 add_executable(gui_smoke tests/gui_smoke.c)
 target_link_libraries(gui_smoke PRIVATE recomp_gui)
+
+if(WIN32)
+    add_executable(present_hook_test tests/present_hook_test.c)
+    target_link_libraries(present_hook_test PRIVATE recomp_gui)
+endif()

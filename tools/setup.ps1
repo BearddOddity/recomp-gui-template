@@ -20,6 +20,7 @@ param(
     [Parameter(Mandatory)][string]$Project,
     [string]$Sdk,
     [switch]$PatchCmake,
+    [switch]$PatchSdkCopies,
     [switch]$Force
 )
 $ErrorActionPreference = 'Stop'
@@ -63,7 +64,7 @@ function Add-Hook($file, $include, $anchor, $text) {
 $gui = Join-Path $proj 'src\gui'
 if (-not $sdkHasGui) {
 Write-Host "GUI sources -> src\gui"
-foreach ($f in 'gui.c','gui.h','gui_d3d11.c','gui_d3d11.h','gui_overlay.c','gui_overlay.h','stb_truetype.h','gui_host.c','gui_host.h') {
+foreach ($f in 'gui.c','gui.h','gui_d3d11.c','gui_d3d11.h','gui_overlay.c','gui_overlay.h','stb_truetype.h','gui_host.c','gui_host.h','gui_present_hook.c','gui_present_hook.h') {
     Copy-New (Join-Path $tpl "src\$f") (Join-Path $gui $f) | Out-Null
 }
 Copy-New (Join-Path $tpl 'LICENSE') (Join-Path $gui 'LICENSE-recomp-gui') | Out-Null
@@ -75,11 +76,12 @@ Write-Host "Starter menu -> src"
 Copy-New (Join-Path $tpl 'examples\debug_menu.c') (Join-Path $proj 'src\debug_menu.c') | Out-Null
 Copy-New (Join-Path $tpl 'examples\debug_menu.h') (Join-Path $proj 'src\debug_menu.h') | Out-Null
 
-# 3. SDK hooks, only when the SDK has no overlay of its own
+# 3. Optional legacy path (-PatchSdkCopies): local copies of two SDK files with the hooks inserted.
+#    Version-fragile, so off by default; the default draws through gui_present_hook.c instead.
 $sources = @('src/debug_menu.c')
-if (-not $sdkHasGui) { $sources = @('src/gui/gui.c','src/gui/gui_d3d11.c','src/gui/gui_overlay.c','src/gui/gui_host.c') + $sources }
+if (-not $sdkHasGui) { $sources = @('src/gui/gui.c','src/gui/gui_d3d11.c','src/gui/gui_overlay.c','src/gui/gui_host.c','src/gui/gui_present_hook.c') + $sources }
 $defs = @()
-if (-not $sdkHasGui) {
+if ($PatchSdkCopies -and -not $sdkHasGui) {
     Write-Host "SDK hooks -> src\sdk_local"
     $loc = Join-Path $proj 'src\sdk_local'
     $gp = Get-ChildItem $Sdk -Recurse -Filter gpu_present.c | Select-Object -First 1
@@ -99,7 +101,8 @@ if (-not $sdkHasGui) {
     $sources += @('src/sdk_local/gpu_present.c'); if ($kb) { $sources += 'src/sdk_local/keyboard.c' }
 }
 # pad capture: the SDK's own switch if it has one
-if (Select-String -Path (Join-Path $Sdk 'src\input\*.c') -Pattern 'xbox_InputSetCaptured' -Quiet) { $defs += 'RECOMP_GUI_XBOXRECOMP' }
+# No SDK file is patched by default: the menu is drawn by hooking IDXGISwapChain::Present (gui_present_hook.c).
+if (-not $sdkHasGui -and -not $PatchSdkCopies) { $defs += 'RECOMP_GUI_AUTO_PRESENT' }
 
 # 4. CMake include
 New-Item -ItemType Directory -Force $gui | Out-Null

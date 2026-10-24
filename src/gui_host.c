@@ -2,26 +2,39 @@
  * Host glue: the one place the GUI touches your recomp runtime.
  *
  * gui_overlay.c calls recomp_gui_input_captured(1) when the F1 menu opens and
- * (0) when it closes. Make your pad/keyboard layer report "nothing pressed"
- * while captured, so the game does not move under the menu.
+ * (0) when it closes, so the game does not move under the menu.
  *
- * With RECOMP_GUI_XBOXRECOMP (set by tools/setup.ps1 when the SDK has it) the
- * call goes to the SDK's xbox_InputSetCaptured(), exactly as in True Crime.
- * Without it the flag is only recorded: read recomp_gui_is_captured() or
- * gui_overlay_wants_input() from your input code.
+ * Version independence: if the runtime you link has xbox_InputSetCaptured()
+ * (the xboxrecomp SDK does in some versions) it is called; if not, the linker
+ * binds the name to a no-op (MSVC /alternatename), so the same sources build
+ * against any SDK version. Either way, gate your own input on
+ * gui_overlay_wants_input() or recomp_gui_is_captured().
  */
 #include "gui_host.h"
 
-#ifdef RECOMP_GUI_XBOXRECOMP
-int xbox_InputSetCaptured(int captured);   /* BOOL in the SDK */
+#ifdef _MSC_VER
+void xbox_InputSetCaptured(int captured);          /* BOOL in the SDK */
+void recomp_gui_noop_capture(int captured);
+#  if defined(_M_IX86)
+#    pragma comment(linker, "/alternatename:_xbox_InputSetCaptured=_recomp_gui_noop_capture")
+#  else
+#    pragma comment(linker, "/alternatename:xbox_InputSetCaptured=recomp_gui_noop_capture")
+#  endif
+#else
+/* GCC/Clang: define RECOMP_GUI_XBOXRECOMP if your runtime has the call. */
+#  ifdef RECOMP_GUI_XBOXRECOMP
+void xbox_InputSetCaptured(int captured);
+#  endif
 #endif
+
+void recomp_gui_noop_capture(int captured) { (void)captured; }
 
 static volatile int s_captured;
 
 void recomp_gui_input_captured(int captured)
 {
     s_captured = captured != 0;
-#ifdef RECOMP_GUI_XBOXRECOMP
+#if defined(_MSC_VER) || defined(RECOMP_GUI_XBOXRECOMP)
     xbox_InputSetCaptured(captured);
 #endif
 }
