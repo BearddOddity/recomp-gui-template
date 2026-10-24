@@ -6,6 +6,7 @@
  * Then, once per presented frame, just before Present(), call
  *     gui_overlay_frame_d3d11(device, context, backbuffer_rtv, hwnd);
  */
+#include <stdlib.h>
 #include "gui.h"
 #include "gui_overlay.h"
 #include "gui_host.h"
@@ -46,13 +47,23 @@ static void window_tracker(void *user)
 
 void debug_menu_init(void)
 {
-    gui_overlay_set_title("My Game Debug");
+    /* As True Crime does (gfx_d3d11.c): on by default, unless RECOMP_GUI is set (then it decides). */
+    if (!getenv("RECOMP_GUI"))
+        gui_overlay_set_enabled(1);
+    gui_overlay_set_title("My Game debug menu");
     gui_overlay_add_page("Cheats", page_cheats, 0);
     gui_overlay_add_page("Graphics", page_graphics, 0);
     gui_overlay_add_window("Tracker", window_tracker, 0);
-    gui_overlay_set_enabled(1);          /* or leave off and run with RECOMP_GUI=on */
 }
 
 /* Game side: poll these from your own thread. */
 int debug_god_mode(void)      { return g_god_mode; }
 int debug_take_reload(void)   { int r = g_want_reload; g_want_reload = 0; return r; }
+
+/* In your pad-reading function (True Crime: recomp_manual.c, port 0). Zero the
+ * state while the menu owns the pad, so the game does not move under it:
+ *     if (port == 0 && gui_overlay_wants_input()) memset(&st.Gamepad, 0, sizeof st.Gamepad);
+ * Also skip your own mouse-look while it is true (True Crime: mouse_release()).
+ * In your window procedure, forward the wheel (True Crime: gfx_d3d11.c):
+ *     gui_overlay_wndproc(hwnd, msg, wparam, lparam);
+ */

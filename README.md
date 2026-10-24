@@ -28,11 +28,12 @@ overlay for Windows / Direct3D 11 static-recompilation projects. Extracted from 
 2. **Input hook.** Edit `src/gui_host.c`: make `recomp_gui_input_captured()` tell your pad/keyboard
    layer to report nothing pressed while the menu is open. Or gate game input on
    `recomp_gui_is_captured()`. (xboxrecomp used `xbox_InputSetCaptured`.)
-3. **Register pages** at start-up. Copy `examples/debug_menu.c`, rename, add tabs:
+3. **Register pages** at start-up, once from `main()` before the first frame (True Crime: `tc_menu_init()`). Copy `examples/debug_menu.c`, rename, add tabs:
    ```c
    gui_overlay_add_page("Cheats", cheats_page, NULL);     // tab in the F1 menu
    gui_overlay_add_window("Tracker", tracker_win, NULL);  // drawn every frame
-   gui_overlay_set_enabled(1);                            // or run with RECOMP_GUI=on
+   if (!getenv("RECOMP_GUI")) gui_overlay_set_enabled(1); // on by default, as True Crime does
+   gui_overlay_set_title("My Game debug menu");
    ```
    Callbacks run on the presenting thread. Set flags only; let the game thread act.
 4. **Draw it.** Once per frame, after the scene and just before `Present()`:
@@ -40,7 +41,9 @@ overlay for Windows / Direct3D 11 static-recompilation projects. Extracted from 
    gui_overlay_frame_d3d11(device, context, backbuffer_rtv, hwnd);
    ```
    Forward `WM_MOUSEWHEEL` to `gui_overlay_wndproc()` if you want the wheel.
-5. **Mouse.** If your game grabs the mouse, skip it while `gui_overlay_wants_mouse()` or
+5. **Pad.** Zero your pad state for port 0 while `gui_overlay_wants_input()` is true, exactly as True Crime does:
+   `if (port == 0 && gui_overlay_wants_input()) memset(&st.Gamepad, 0, sizeof st.Gamepad);`
+6. **Mouse.** If your game grabs the mouse, skip it while `gui_overlay_wants_mouse()` or
    `gui_overlay_wants_input()` is true.
 
 Not using D3D11? Use the core only: fill `gui_io()` each frame, call `gui_new_frame()`, your widgets,
