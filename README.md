@@ -7,8 +7,9 @@ game. Add your own pages in a few lines.
 
 ![The F1 menu: performance panel, a menu window with tabs, an always-on window and a notice](docs/f1-menu.png)
 
-**Needs:** Windows, a game that presents with Direct3D 11, a C11 compiler, CMake. The default font is read from
-the Windows font folder (Segoe UI), or point `RECOMP_GUI_FONT` at any `.ttf`.
+**Runs on:** Windows (Direct3D 11), Linux (OpenGL 3.3 / ES 3.0) and macOS (Metal). Needs a C11 compiler and CMake. The
+font is read from the system (Segoe UI on Windows, DejaVu or Liberation on Linux, Arial on macOS), or point
+`RECOMP_GUI_FONT` at any `.ttf`.
 
 ## Quick start
 
@@ -70,6 +71,34 @@ depends on those files' layout, so it is off by default.
 | True Crime: New York City RE:COMPILED | Pages for audio, graphics, display, HUD layout and developer tools. Uses the same code through its SDK checkout, and its wiring is what this template follows. |
 | Hulk: Ultimate Destruction recomp | A level selector. Built and tested with this template's sources: F1 opens the menu over the game. |
 
+## Linux and macOS
+
+Same menu, same page code; only the glue differs. The portable overlay (`gui_overlay_portable.h`) has no windowing
+dependency: your window loop hands it input and draws what it returns with the OpenGL or Metal renderer.
+
+```c
+#include "gui_overlay_portable.h"
+#include "gui_gl.h"        // Linux: OpenGL 3.3 core / ES 3.0, any loader (SDL, GLFW, EGL)
+// #include "gui_metal.h"  // macOS: Metal
+
+debug_menu_init();                                  // same pages as on Windows
+
+// each frame, after drawing the scene
+GuiPlatformInput in = { .focused = 1, .mouse_x = mx, .mouse_y = my, .mouse_down = { left, right },
+                        .f1 = key_f1_down, .nav = { [GUI_NAV_UP] = key_up, [GUI_NAV_ACTIVATE] = key_enter, ... } };
+gui_platform_set_input(&in);
+const GuiDrawData *dd = gui_overlay_frame(width, height);   // NULL while off
+if (dd) { gui_gl_init(SDL_GL_GetProcAddress, 0); gui_gl_render(dd, fb_w, fb_h); }          // OpenGL
+// if (dd) { gui_metal_init(device, pixelFormat); gui_metal_render(dd, encoder, fb_w, fb_h); } // Metal
+```
+
+- `gui_gl_init` takes the loader your window library already has, so no GL headers or libraries are linked.
+- `gui_metal_init` / `gui_metal_render` take the Metal device and the render encoder as `void *`, so the header is plain C.
+- The performance panel shows FPS, frame time, CPU and RAM (no GPU numbers off Windows).
+- There is no `setup.ps1` for these systems: add the folder with CMake (`add_subdirectory`) and link `recomp_gui`.
+- Checked here: Linux builds warning-free with GCC and passes `portable_overlay_test`; `gl_render_test` renders the menu
+  through Mesa's software OpenGL into an off-screen buffer (see `docs/linux-opengl.png`). Metal is built and tested by CI on a
+  macOS runner (see the build badge above); I have not run it on a real Mac.
 ## Add your own pages
 
 ```c
@@ -132,8 +161,10 @@ then `gui_render()`, and draw the returned vertices, indices and scissored comma
 | `src/stb_truetype.h` | Font rasteriser |
 | `examples/` | Starter F1 menu |
 | `tools/setup.ps1` | The setup script |
-| `tests/` | `gui_smoke` (core checks; with a `.bmp` path also renders off screen) and `present_hook_test` (real swap chain, hook reached on every Present) |
-| `docs/` | Screenshots made by the smoke test |
+| `src/gui_overlay_portable.[ch]` | Overlay for Linux and macOS (host feeds input, draws the result) |
+| `src/gui_gl.[ch]`, `src/gui_metal.[hm]` | OpenGL and Metal renderers |
+| `tests/` | `gui_smoke` (core checks), `present_hook_test` (Windows), `portable_overlay_test`, `gl_render_test` and `metal_render_test` (off-screen renders) |
+| `docs/` | Screenshots made by the tests |
 
 Build and test:
 
