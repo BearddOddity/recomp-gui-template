@@ -144,6 +144,10 @@ int  gui_ready(void);
  * A 2x2 fully covered block is included for solid fills. */
 void gui_font_atlas(const uint8_t **alpha8, int *w, int *h);
 float gui_font_size(void);
+/* Optional pair kerning for the font given to gui_init(), for fonts that keep it in GPOS (which
+ * stb_truetype does not read). Entries {left, right, adjust}: codepoints 32..255, adjust in 1/1000 em,
+ * sorted by (left, right). The table is not copied. Call after gui_init(); pass NULL to clear. */
+void gui_font_set_kerning(const short (*pairs)[3], int count);
 
 /* ── Frame ─────────────────────────────────────────────────────── */
 

@@ -181,6 +181,10 @@ static struct {
     int              atlas_w, atlas_h;
     stbtt_packedchar chars[GUI_GLYPH_COUNT];
     float            font_size, ascent, white_u, white_v;
+    const short    (*kern)[3];            /* optional pair kerning, see gui_font_set_kerning() */
+    int              kern_count;
+    float            kern_px;             /* pixels per 1/1000 em */
+    float            track_px;            /* letter-spacing, pixels */
 
     /* windows */
     GuiWindow  windows[GUI_MAX_WINDOWS];
@@ -514,16 +518,53 @@ static int glyph_of(unsigned c)
          ? (int)(c - GUI_GLYPH_FIRST) : '?' - GUI_GLYPH_FIRST;
 }
 
+/* Pair kerning in pixels between two codepoints (0 when no table or no pair). */
+/* Horizontal oversampling of the glyph atlas (1 = crisp but needs whole-pixel positions) and whether glyphs
+ * are placed on whole pixels. Defaults chosen by looking at the result; override with -D. */
+#ifndef GUI_FONT_OVERSAMPLE_X
+#define GUI_FONT_OVERSAMPLE_X 2
+#endif
+/* Letter-spacing added to every glyph, in em (negative tightens). Montserrat is a wide, generously spaced
+ * face; a little less spacing suits UI text at small sizes. */
+#ifndef GUI_TRACKING_EM
+#define GUI_TRACKING_EM -0.025f
+#endif
+#ifndef GUI_GLYPH_SNAP
+#define GUI_GLYPH_SNAP 0
+#endif
+
+static float kern_between(unsigned a, unsigned b)
+{
+    int lo = 0, hi = G.kern_count - 1;
+    if (!G.kern_count || a < 32 || a > 255 || b < 32 || b > 255) return 0.0f;
+    while (lo <= hi) {
+        int mid = (lo + hi) / 2;
+        int ka = G.kern[mid][0], kb = G.kern[mid][1];
+        if (ka == (int)a && kb == (int)b) return (float)G.kern[mid][2] * G.kern_px;
+        if (ka < (int)a || (ka == (int)a && kb < (int)b)) lo = mid + 1; else hi = mid - 1;
+    }
+    return 0.0f;
+}
+
+void gui_font_set_kerning(const short (*pairs)[3], int count)
+{
+    G.kern = pairs;
+    G.kern_count = pairs && count > 0 ? count : 0;
+    G.track_px = G.kern_count ? G.kern_px * 1000.0f * GUI_TRACKING_EM : 0.0f;   /* the built-in face is tracked; custom fonts are not */
+}
+
 static GuiVec2 text_size(const char *s, const char *end)
 {
     GuiVec2 r;
     float line = 0.0f;
+    unsigned prev = 0;
     r.x = 0.0f; r.y = G.font_size;
     if (!end) end = s + strlen(s);
     while (s < end) {
         unsigned c = utf8_next(&s, end);
-        if (c == '\n') { r.x = fmaxf_(r.x, line); line = 0.0f; r.y += G.font_size; continue; }
-        line += G.chars[glyph_of(c)].xadvance;
+        if (c == '\n') { r.x = fmaxf_(r.x, line); line = 0.0f; r.y += G.font_size; prev = 0; continue; }
+        line += G.chars[glyph_of(c)].xadvance + kern_between(prev, c) + G.track_px;
+        prev = c;
     }
     r.x = fmaxf_(r.x, line);
     return r;
@@ -532,18 +573,27 @@ static GuiVec2 text_size(const char *s, const char *end)
 static void dl_text(DrawList *d, float x, float y, uint32_t col, const char *s, const char *end)
 {
     float x0 = floorf(x + 0.5f), px = x0, base = floorf(y + 0.5f) + G.ascent;
+    unsigned prev = 0;
     if (!end) end = s + strlen(s);
     if (!(col >> 24))
         return;
     while (s < end) {
         unsigned c = utf8_next(&s, end);
         stbtt_aligned_quad q;
-        float qx = px, qy = base;
-        if (c == '\n') { px = x0; base += G.font_size; continue; }
+        float qx, qy = base;
+        if (c == '\n') { px = x0; base += G.font_size; prev = 0; continue; }
+        px += kern_between(prev, c);
+        prev = c;
+        qx = px;
         stbtt_GetPackedQuad(G.chars, G.atlas_w, G.atlas_h, glyph_of(c), &qx, &qy, &q, 0);
+#if GUI_GLYPH_SNAP
+        {   float dx = floorf(q.x0 + 0.5f) - q.x0;
+            q.x0 += dx; q.x1 += dx;
+        }
+#endif
         if (c != ' ' && q.y1 >= d->clip[1] && q.y0 <= d->clip[3] && q.x1 >= d->clip[0] && q.x0 <= d->clip[2])
             dl_quad_uv(d, q.x0, q.y0, q.x1, q.y1, q.s0, q.t0, q.s1, q.t1, col);
-        px = qx;
+        px = qx + G.track_px;
     }
 }
 
@@ -653,6 +703,8 @@ int gui_init(const void *ttf, size_t ttf_size, float font_px)
     stbtt_GetFontVMetrics(&info, &asc, &desc, &gap);
     G.font_size = floorf(font_px + 0.5f);
     G.ascent = floorf((float)asc * stbtt_ScaleForPixelHeight(&info, G.font_size) + 0.5f);
+    G.kern_px = stbtt_ScaleForPixelHeight(&info, G.font_size) / stbtt_ScaleForMappingEmToPixels(&info, 1.0f) / 1000.0f;
+    G.track_px = 0.0f;
 
     /* Pack into the smallest square that holds every glyph, plus two rows
      * under it for the solid block. */
@@ -664,7 +716,7 @@ int gui_init(const void *ttf, size_t ttf_size, float font_px)
             gui_shutdown();
             return 0;
         }
-        stbtt_PackSetOversampling(&pc, 2, 1);
+        stbtt_PackSetOversampling(&pc, GUI_FONT_OVERSAMPLE_X, 1);
         ok = stbtt_PackFontRange(&pc, G.ttf, 0, G.font_size, GUI_GLYPH_FIRST, GUI_GLYPH_COUNT, G.chars);
         stbtt_PackEnd(&pc);
         if (ok) break;

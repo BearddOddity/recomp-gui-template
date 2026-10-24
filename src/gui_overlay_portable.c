@@ -199,6 +199,8 @@ static int font_init(float target_h)
         if (s_scale > 4.0f) s_scale = 4.0f;
     }
     ok = gui_init(ttf, size, 16.0f * s_scale);
+    if (ok && ttf == gui_font_montserrat_bold)
+        gui_font_set_kerning(gui_font_montserrat_bold_kern, gui_font_montserrat_bold_kern_count);
     free(owned);
     if (!ok) fprintf(stderr, "[GUI] cannot read font %s; overlay off\n", used);
     else fprintf(stderr, "[GUI] overlay ready: %s, %.0f px\n", used, gui_font_size());

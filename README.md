@@ -10,6 +10,9 @@ game. Add your own pages in a few lines.
 **Runs on:** Windows (Direct3D 11), Linux (OpenGL 3.3 / ES 3.0) and macOS (Metal). Needs a C11 compiler and CMake. The
 UI font is Montserrat Bold, compiled in, so the menu looks the same on every system and needs no font files.
 Point `RECOMP_GUI_FONT` at any `.ttf` to use another.
+Montserrat is a wide face, so the built-in one is set with its real pair kerning (read from the font's GPOS table,
+which `stb_truetype` cannot do) and slightly tighter letter-spacing (`GUI_TRACKING_EM` in `src/gui.c`, default -0.025 em);
+a font you supply is laid out untouched. `tools/embed_font.py` regenerates the font and kerning table from a `.ttf`.
 
 ## Quick start
 
@@ -158,7 +161,8 @@ then `gui_render()`, and draw the returned vertices, indices and scissored comma
 | `src/gui_host.[ch]` | The one hook into your runtime (input capture) |
 | `src/gui_present_hook.[ch]` | Optional: draw by hooking `IDXGISwapChain::Present` |
 | `src/stb_truetype.h` | Font rasteriser |
-| `src/gui_font_montserrat.[ch]`, `fonts/` | The built-in Montserrat Bold (as a C array, and the .ttf with its licence) |
+| `src/gui_font_montserrat.[ch]`, `fonts/` | The built-in Montserrat Bold with its kerning table (as C arrays), the .ttf and its licence |
+| `tools/embed_font.py` | Makes `gui_font_montserrat.c` from a .ttf (needs Python and `fonttools`) |
 | `examples/` | Starter F1 menu |
 | `tools/setup.ps1` | The setup script |
 | `src/gui_overlay_portable.[ch]` | Overlay for Linux and macOS (host feeds input, draws the result) |
