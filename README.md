@@ -19,9 +19,30 @@ overlay for Windows / Direct3D 11 static-recompilation projects. Extracted from 
 | `src/gui_overlay.[ch]` | perf panel, F1 menu, notices (Windows) |
 | `src/gui_host.[ch]` | the one hook into your runtime (input capture) |
 | `examples/debug_menu.c` | F1 menu scaffold: pages, window, game-side flags |
+| `tools/setup.ps1` | one-command setup for an xboxrecomp game project |
 | `tests/gui_smoke.c` | core checks; with a `.bmp` arg also renders off-screen |
 
-## Integrate into a recomp project
+## Quick start (xboxrecomp games)
+
+```
+git clone https://github.com/BearddOddity/recomp-gui-template
+recomp-gui-template\tools\setup.ps1 -Project "D:\My apps\My Game Recomp" -PatchCmake
+```
+
+The script finds the SDK from `XBOXRECOMP_DIR` in your CMakeLists.txt (or pass `-Sdk <dir>`), then:
+
+- copies the GUI to `src\gui` and a starter `src\debug_menu.c/.h`;
+- if the SDK has no runtime overlay (v0.16.0 and older), copies the SDK's `gpu_present.c` and `keyboard.c` to
+  `src\sdk_local` with the two hooks inserted (draw at present; menu takes the keyboard). Newer SDKs that
+  carry `src\gui` already need neither;
+- writes `src\gui\recomp_gui.cmake` and, with `-PatchCmake`, includes it from CMakeLists.txt.
+
+Then add `#include "debug_menu.h"` and one `debug_menu_init();` call in `main.c` before the guest runs, build,
+and press F1. Re-running is safe: existing files are kept (`-Force` overwrites). The SDK is never modified.
+Checked: the hooks it inserts match the ones hand-made for Hulk: Ultimate Destruction (SDK v0.16.0).
+
+The manual steps below are what the script does, for other setups.
+## Integrate into a recomp project by hand
 
 1. **Copy or submodule** this repo, then `add_subdirectory(recomp-gui-template)` and
    `target_link_libraries(your_game PRIVATE recomp_gui)`. (Or copy `src/` into your tree.)
