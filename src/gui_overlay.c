@@ -180,13 +180,13 @@ static void *read_file(const char *path, size_t *size)
     return p;
 }
 
-/* The font: RECOMP_GUI_FONT=<.ttf> if set and readable, else the Montserrat Medium compiled in. */
+/* The font: RECOMP_GUI_FONT=<.ttf> if set and readable, else the Montserrat Bold compiled in. */
 static int font_init(unsigned target_h)
 {
     const char *env = getenv("RECOMP_GUI_FONT");
     const void *ttf = NULL;
     void *owned = NULL;
-    const char *used = "built-in Montserrat Medium";
+    const char *used = "built-in Montserrat Bold";
     size_t size = 0;
     int ok;
 
@@ -195,8 +195,8 @@ static int font_init(unsigned target_h)
         used = env;
     }
     if (!ttf) {
-        ttf = gui_font_montserrat_medium;
-        size = gui_font_montserrat_medium_size;
+        ttf = gui_font_montserrat_bold;
+        size = gui_font_montserrat_bold_size;
     }
     {
         const char *v = getenv("RECOMP_GUI_SCALE");

@@ -8,7 +8,7 @@ game. Add your own pages in a few lines.
 ![The F1 menu: performance panel, a menu window with tabs, an always-on window and a notice](docs/f1-menu.png)
 
 **Runs on:** Windows (Direct3D 11), Linux (OpenGL 3.3 / ES 3.0) and macOS (Metal). Needs a C11 compiler and CMake. The
-UI font is Montserrat Medium, compiled in, so the menu looks the same on every system and needs no font files.
+UI font is Montserrat Bold, compiled in, so the menu looks the same on every system and needs no font files.
 Point `RECOMP_GUI_FONT` at any `.ttf` to use another.
 
 ## Quick start
@@ -146,7 +146,7 @@ then `gui_render()`, and draw the returned vertices, indices and scissored comma
 | `RECOMP_GUI=on` or `off` | Overlay on or off (code can also call `gui_overlay_set_enabled`). |
 | `RECOMP_OSD=on` or `off` | Performance panel shown or hidden at start. |
 | `RECOMP_GUI_SCALE=<k>` | UI scale. Default: back-buffer height / 720, at least 1. |
-| `RECOMP_GUI_FONT=<file.ttf>` | Font file. Default: the built-in Montserrat Medium. |
+| `RECOMP_GUI_FONT=<file.ttf>` | Font file. Default: the built-in Montserrat Bold. |
 
 ## What is in the repo
 
@@ -158,7 +158,7 @@ then `gui_render()`, and draw the returned vertices, indices and scissored comma
 | `src/gui_host.[ch]` | The one hook into your runtime (input capture) |
 | `src/gui_present_hook.[ch]` | Optional: draw by hooking `IDXGISwapChain::Present` |
 | `src/stb_truetype.h` | Font rasteriser |
-| `src/gui_font_montserrat.[ch]`, `fonts/` | The built-in Montserrat Medium (as a C array, and the .ttf with its licence) |
+| `src/gui_font_montserrat.[ch]`, `fonts/` | The built-in Montserrat Bold (as a C array, and the .ttf with its licence) |
 | `examples/` | Starter F1 menu |
 | `tools/setup.ps1` | The setup script |
 | `src/gui_overlay_portable.[ch]` | Overlay for Linux and macOS (host feeds input, draws the result) |

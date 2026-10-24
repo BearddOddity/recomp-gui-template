@@ -13,7 +13,7 @@ Third-party material:
   (https://github.com/ocornut/imgui, MIT, C++). This is an adaptation to plain
   C with C structs in place of its C++ types, written independently; no Dear
   ImGui source code is included.
-- Montserrat Medium 7.200 (src/gui_font_montserrat.c, fonts/Montserrat-Medium.ttf):
+- Montserrat Bold 7.200 (src/gui_font_montserrat.c, fonts/Montserrat-Bold.ttf):
   Copyright 2011 The Montserrat Project Authors
   (https://github.com/JulietaUla/Montserrat), SIL Open Font License 1.1, full text
   in fonts/OFL.txt. The font is bundled unmodified; the licence text must stay with it.
